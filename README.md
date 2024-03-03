@@ -1,4 +1,5 @@
 # simple-router
+(that is not case sensitive now!!)
 
 Simple, fast and yet powerful PHP router that is easy to get integrated and in any project. Heavily inspired by the way Laravel handles routing, with both simplicity and expand-ability in mind.
 
