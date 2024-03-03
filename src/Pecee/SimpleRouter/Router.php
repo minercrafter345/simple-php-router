@@ -371,102 +371,99 @@ class Router
     public function routeRequest(): ?string
     {
         $this->debug('Routing request');
-
+    
         $methodNotAllowed = null;
-
+    
         try {
-            $url = $this->request->getRewriteUrl() ?? $this->request->getUrl()->getPath();
-
+            $url = strtolower($this->request->getRewriteUrl() ?? $this->request->getUrl()->getPath());
+        
             /* @var $route ILoadableRoute */
             foreach ($this->processedRoutes as $key => $route) {
-
                 $this->debug('Matching route "%s"', get_class($route));
-
+            
                 /* Add current processing route to constants */
                 $this->currentProcessingRoute = $route;
-
+            
                 /* If the route matches */
-                if ($route->matchRoute($url, $this->request) === true) {
-
+                if ($route->matchRoute($url, $this->request)) {
                     $this->fireEvents(EventHandler::EVENT_MATCH_ROUTE, [
                         'route' => $route,
                     ]);
-
+                
                     /* Check if request method matches */
-                    if (count($route->getRequestMethods()) !== 0 && in_array($this->request->getMethod(), $route->getRequestMethods(), true) === false) {
+                    if (count($route->getRequestMethods()) !== 0 && !in_array(strtolower($this->request->getMethod()), array_map('strtolower', $route->getRequestMethods()), true)) {
                         $this->debug('Method "%s" not allowed', $this->request->getMethod());
-
-                        // Only set method not allowed is not already set
+                    
+                        // Only set method not allowed if not already set
                         if ($methodNotAllowed === null) {
                             $methodNotAllowed = true;
                         }
-
+                    
                         continue;
                     }
-
+                
                     $this->fireEvents(EventHandler::EVENT_RENDER_MIDDLEWARES, [
                         'route' => $route,
                         'middlewares' => $route->getMiddlewares(),
                     ]);
-
+                
                     $route->loadMiddleware($this->request, $this);
-
+                
                     $output = $this->handleRouteRewrite($key, $url);
                     if ($output !== null) {
                         return $output;
                     }
-
+                
                     $methodNotAllowed = false;
-
+                
                     $this->request->addLoadedRoute($route);
-
+                
                     $this->fireEvents(EventHandler::EVENT_RENDER_ROUTE, [
                         'route' => $route,
                     ]);
-
+                
                     $routeOutput = $route->renderRoute($this->request, $this);
-
+                
                     if ($this->renderMultipleRoutes === true) {
                         if ($routeOutput !== '') {
                             return $routeOutput;
                         }
-
+                    
                         $output = $this->handleRouteRewrite($key, $url);
                         if ($output !== null) {
                             return $output;
                         }
                     } else {
                         $output = $this->handleRouteRewrite($key, $url);
-
+                    
                         return $output ?? $routeOutput;
                     }
                 }
             }
-
+        
         } catch (Exception $e) {
             return $this->handleException($e);
         }
-
+    
         if ($methodNotAllowed === true) {
             $message = sprintf('Route "%s" or method "%s" not allowed.', $this->request->getUrl()->getPath(), $this->request->getMethod());
             return $this->handleException(new NotFoundHttpException($message, 403));
         }
-
+    
         if (count($this->request->getLoadedRoutes()) === 0) {
-
-            $rewriteUrl = $this->request->getRewriteUrl();
-
+            $rewriteUrl = strtolower($this->request->getRewriteUrl());
+        
             if ($rewriteUrl !== null) {
                 $message = sprintf('Route not found: "%s" (rewrite from: "%s")', $rewriteUrl, $this->request->getUrl()->getPath());
             } else {
                 $message = sprintf('Route not found: "%s"', $this->request->getUrl()->getPath());
             }
-
+        
             $this->debug($message);
-
+        
             return $this->handleException(new NotFoundHttpException($message, 404));
         }
-
+    
         return null;
     }
 
